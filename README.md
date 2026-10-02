@@ -65,7 +65,7 @@ Pointer speed and scroll direction ("natural" like a phone, or "traditional" lik
 A remote keyboard and mouse can do anything you can, so nipulate only obeys phones that have paired with it.
 
 - On first run nipulate creates a random 128-bit pairing key and stores it in `%APPDATA%\nipulate\config.json`. The QR code carries it in the part of the address after `#`, which browsers never send over the network or put in logs. The phone saves it and clears it from the address bar.
-- Every connection must present the key first. Wrong keys and wrong codes are rate-limited per device, and the 6-digit code expires after 5 minutes, changes after each use and changes after too many wrong guesses.
+- Every connection must present the key first. Wrong keys and wrong codes are rate-limited per IP address, and the 6-digit code expires after 5 minutes, changes after each use and changes after too many wrong guesses.
 - **Reset pairing** on the PC page makes a new key and signs every phone out.
 - The PC page, its QR code, Stop and Reset pairing only answer the PC itself.
 - Typed text is never logged, only how many characters were typed.
