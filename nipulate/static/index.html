@@ -103,18 +103,6 @@
   </div>
 </div>
 
-<div class="overlay" id="pair" hidden>
-  <div class="card">
-    <h1>Pair with your PC</h1>
-    <p id="pair-msg">Scan the QR code on the PC with your phone's camera, or type the code shown under it.</p>
-    <form id="pair-form" autocomplete="off">
-      <input id="code" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="000 000" aria-label="Pairing code">
-      <button class="primary" type="submit">Pair</button>
-    </form>
-    <p class="hint">The PC page opens when you start nipulate. It's also at <b id="pc-url">localhost:8787/pc</b> on the PC.</p>
-  </div>
-</div>
-
 <div class="overlay" id="replaced" hidden>
   <div class="card">
     <h1>Open somewhere else</h1>
@@ -149,9 +137,8 @@
       </div>
       <small id="scroll-help"></small>
     </div>
-    <p class="hint" id="ios-tip" hidden>For full screen: tap Share, then <b>Add to Home Screen</b>. The Home Screen app pairs separately, with the code.</p>
+    <p class="hint" id="ios-tip" hidden>For full screen: tap Share, then <b>Add to Home Screen</b>.</p>
     <div class="buttons">
-      <button class="secondary" id="forget">Unpair this phone</button>
       <button class="primary" id="settings-done">Done</button>
     </div>
     <p class="hint" id="version"></p>

@@ -145,15 +145,6 @@ svg { width: 30px; height: 30px; fill: currentColor; flex: none; pointer-events:
 .secondary { background: var(--pressed); color: var(--text); }
 .primary:active, .secondary:active { filter: brightness(0.85); }
 
-#pair-form { display: flex; gap: 10px; }
-#code {
-  flex: 1; min-width: 0; height: 60px; border-radius: 16px; border: 1px solid var(--edge); background: var(--bg);
-  color: var(--text); font: inherit; font-size: 28px; font-weight: 650; letter-spacing: 0.12em; text-align: center;
-  font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; touch-action: manipulation;
-}
-#code:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-#pair-form .primary { flex: none; padding: 0 22px; min-height: 60px; }
-#pair-msg.error { color: var(--danger); }
 
 .field { display: flex; flex-direction: column; gap: 10px; font-size: 17px; }
 .field b { color: var(--accent); margin-left: 6px; }

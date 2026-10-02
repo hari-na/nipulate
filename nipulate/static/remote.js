@@ -31,19 +31,9 @@ function randomId() {
 let clientId = store.get("id");
 if (!clientId) { clientId = randomId(); store.set("id", clientId); }
 
-// The QR code puts the pairing token in the URL fragment (#k=...), which browsers never send
-// to the server. Keep it, then clear it from the address bar so it isn't bookmarked or shared.
-let token = store.get("token");
-
-function readFragment() {
-  const m = /[#&]k=([A-Za-z0-9_-]{16,128})/.exec(location.hash);
-  if (!m) return false;
-  token = m[1];
-  store.set("token", token);
-  history.replaceState(null, "", location.pathname + location.search);
-  return true;
-}
-readFragment();
+// Older versions paired with a key in the address (#k=...). Nothing to pair now: tidy it away.
+if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+store.del("token");
 
 let sensitivity = parseFloat(store.get("sens", "1.5")) || 1.5;
 let natural = store.get("natural", "1") === "1";
@@ -52,8 +42,7 @@ let natural = store.get("natural", "1") === "1";
 
 let ws = null;
 let authed = false;
-let pendingCode = null;   // a typed pairing code waiting to be sent
-let reconnect = true;     // false while the user has to act (pair, take over)
+let reconnect = true;     // false while another tab has taken over
 let backoff = 500;
 let reconnectTimer = 0;
 let lastPong = 0;
@@ -71,16 +60,12 @@ function setStatus(text, kind) {
 function connect() {
   clearTimeout(reconnectTimer);
   if (ws && ws.readyState <= WebSocket.OPEN) return;
-  if (!token && !pendingCode) { showPair(); return; }
   setStatus("Connecting", "wait");
   const sock = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
   ws = sock;
   sock.onopen = () => {
     lastPong = performance.now();
-    const hello = pendingCode
-      ? { t: "pair", code: pendingCode, id: clientId, standalone }
-      : { t: "hello", k: token, id: clientId, standalone };
-    sock.send(JSON.stringify(hello));
+    sock.send(JSON.stringify({ t: "hello", id: clientId, standalone }));
   };
   sock.onmessage = (e) => { if (sock === ws) onMessage(JSON.parse(e.data)); };
   sock.onclose = () => { if (sock === ws) dropped(); };
@@ -104,9 +89,6 @@ function onMessage(msg) {
     case "ok":
       authed = true;
       backoff = 500;
-      if (msg.k) { token = msg.k; store.set("token", token); }
-      pendingCode = null;
-      hide("#pair");
       setStatus("Connected", "ok");
       send({ t: "set", sens: sensitivity });
       if (msg.vol) showVolume(msg.vol.level, msg.vol.muted);
@@ -119,44 +101,12 @@ function onMessage(msg) {
     case "vol":
       showVolume(msg.level, msg.muted);
       break;
-    case "denied":
-      denied(msg);
-      break;
-    case "reset":
-      forgetToken();
-      reconnect = false;
-      showPair("Pairing was reset on the PC. Scan the new QR code, or type the code shown under it.", true);
-      break;
     case "replaced":
       reconnect = false;
       setStatus("Paused", "");
       show("#replaced");
       break;
   }
-}
-
-function denied(msg) {
-  if (msg.reason === "limited") {
-    const wait = Math.max(5, msg.retry || 60);
-    reconnect = false;
-    pendingCode = null;
-    showPair(`Too many wrong tries. Wait ${wait} seconds, then try again.`, true);
-    return;
-  }
-  if (msg.reason === "token") {
-    forgetToken();
-    reconnect = false;
-    showPair("This phone isn't paired with the PC anymore. Scan the QR code, or type the code shown under it.", true);
-  } else if (msg.reason === "code") {
-    pendingCode = null;
-    reconnect = false;
-    showPair("That code didn't match. Check the code on the PC page and try again.", true);
-  }
-}
-
-function forgetToken() {
-  token = null;
-  store.del("token");
 }
 
 // Heartbeat: measures latency, and notices a dead connection faster than the browser does.
@@ -168,51 +118,10 @@ setInterval(() => {
 
 addEventListener("online", () => { if (!ws && reconnect) connect(); });
 
-// The QR link opened in a tab that already had nipulate loaded.
-addEventListener("hashchange", () => {
-  if (!readFragment()) return;
-  pendingCode = null;
-  reconnect = true;
-  backoff = 500;
-  if (ws) { const s = ws; ws = null; authed = false; try { s.close(); } catch (_) {} }
-  connect();
-});
-
 // ---- overlays ---------------------------------------------------------------
 
 function show(sel) { $(sel).hidden = false; }
 function hide(sel) { $(sel).hidden = true; }
-
-function showPair(text, isError) {
-  setStatus("Not paired", "bad");
-  const p = $("#pair-msg");
-  if (text) p.textContent = text;
-  p.classList.toggle("error", !!isError);
-  show("#pair");
-}
-
-$("#pair-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const code = $("#code").value.replace(/\D/g, "");
-  if (code.length !== 6) {
-    showPair("The code has 6 digits.", true);
-    return;
-  }
-  $("#code").value = "";
-  $("#code").blur();
-  pendingCode = code;
-  reconnect = true;
-  backoff = 500;
-  $("#pair-msg").textContent = "Pairing...";
-  $("#pair-msg").classList.remove("error");
-  if (ws) { try { ws.close(); } catch (_) {} ws = null; }
-  connect();
-});
-
-$("#code").addEventListener("input", (e) => {
-  const d = e.target.value.replace(/\D/g, "").slice(0, 6);
-  e.target.value = d.length > 3 ? d.slice(0, 3) + " " + d.slice(3) : d;
-});
 
 $("#take-over").addEventListener("click", () => {
   hide("#replaced");
@@ -551,16 +460,6 @@ for (const b of document.querySelectorAll("#scroll-dir button")) {
     renderSettings();
   });
 }
-$("#forget").addEventListener("click", () => {
-  hide("#settings");
-  forgetToken();
-  reconnect = false;
-  if (ws) { const s = ws; ws = null; authed = false; try { s.close(); } catch (_) {} }
-  showPair("This phone is unpaired. Scan the QR code on the PC, or type the code shown under it.");
-});
-
-if (location.port) $("#pc-url").textContent = `localhost:${location.port}/pc`;
-
 // ---- start --------------------------------------------------------------------------------
 
 connect();
