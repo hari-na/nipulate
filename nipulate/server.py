@@ -217,7 +217,10 @@ async def no_cache(request: web.Request, handler):
 
 
 async def _start_housekeeping(app: web.Application) -> None:
-    app[_HOUSEKEEPING] = asyncio.create_task(app[HUB].run())
+    hub = app[HUB]
+    hub.log(f"nipulate {__version__} started, {hub.mode}")
+    hub.log(f"Phones on the same Wi-Fi: {hub.url}")
+    app[_HOUSEKEEPING] = asyncio.create_task(hub.run())
 
 
 async def _cleanup(app: web.Application) -> None:

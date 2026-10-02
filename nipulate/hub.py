@@ -255,7 +255,7 @@ class Hub:
         for p in self.phones.values():
             if p.msgs:
                 lat = f"{p.latency} ms" if p.latency is not None else "? ms"
-                parts.append(f"{p.label} {p.msgs / elapsed:.0f} msg/s {lat}")
+                parts.append(f"{p.label} {p.msgs / elapsed:.1f} msg/s {lat}")
             p.msgs = 0
         if parts and self.verbose:
             self.log("stats: " + " | ".join(parts))

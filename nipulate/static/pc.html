@@ -56,7 +56,9 @@
   #log { background: var(--panel); border: 1px solid var(--edge); border-radius: 12px; padding: 12px 14px;
          height: 300px; overflow-y: auto; font: 13px/1.55 ui-monospace, Consolas, monospace; color: #b9bcc4;
          white-space: pre-wrap; word-break: break-word; }
-  .notes { color: var(--dim); font-size: 14px; line-height: 1.6; margin: 10px 0 0; padding-left: 18px; }
+  .notes { display: block; color: var(--dim); font-size: 14px; line-height: 1.6; margin: 12px 0 0; padding-left: 18px; list-style: disc; }
+  .notes li { display: list-item; background: none; border: 0; padding: 0; font-size: 14px; }
+  .notes b { color: var(--text); font-weight: 600; }
   #down { display: none; background: #2a1513; border: 1px solid #6b2a26; color: #f2b8b3; border-radius: 12px;
           padding: 12px 16px; margin-bottom: 18px; font-size: 16px; }
   body.offline #down { display: block; }
