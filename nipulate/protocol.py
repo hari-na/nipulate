@@ -4,8 +4,8 @@ Every message is a JSON object with a ``t`` (type) field. Anything a phone
 sends is untrusted: numbers are clamped, text is cleaned, and keys are named
 actions from ``KEYS``. A phone can never send a raw virtual-key code.
 
-Before authentication a phone may only send ``hello`` (with its pairing
-token) or ``pair`` (with the short code shown on the PC).
+A phone's first message must be ``hello``, which names the browser tab so a
+second tab of the same phone can take over from the first.
 """
 
 from __future__ import annotations
@@ -62,8 +62,6 @@ BUTTON_ACTIONS = ("click", "down", "up")
 MAX_MESSAGE_BYTES = 4096
 TEXT_MAX = 256
 CLIENT_ID_MAX = 64
-TOKEN_MAX = 128
-CODE_MAX = 8
 DELTA_MAX = 2000.0  # pixels in one frame; anything bigger is a bug or an attack
 DT_MIN_MS, DT_MAX_MS = 1.0, 250.0
 SENSITIVITY_MIN, SENSITIVITY_MAX = 0.25, 5.0
@@ -71,14 +69,6 @@ SENSITIVITY_MIN, SENSITIVITY_MAX = 0.25, 5.0
 
 @dataclass(frozen=True)
 class Hello:
-    token: str
-    client_id: str
-    standalone: bool
-
-
-@dataclass(frozen=True)
-class Pair:
-    code: str
     client_id: str
     standalone: bool
 
@@ -135,7 +125,7 @@ class Release:
     """Let go of any held mouse button (the phone lost focus or the gesture was cancelled)."""
 
 
-Message = Hello | Pair | Move | Scroll | Button | Key | Text | Settings | Ping | Lock | Release
+Message = Hello | Move | Scroll | Button | Key | Text | Settings | Ping | Lock | Release
 
 
 def _number(value, lo: float, hi: float) -> float:
@@ -201,10 +191,5 @@ def parse_message(data) -> Message:
     if t == "release":
         return Release()
     if t == "hello":
-        return Hello(_string(data.get("k"), TOKEN_MAX), _client_id(data.get("id")), data.get("standalone") is True)
-    if t == "pair":
-        code = _string(data.get("code"), CODE_MAX + 4).replace(" ", "")
-        if not (code.isascii() and code.isdigit()) or len(code) > CODE_MAX:
-            raise ValueError("pairing code must be digits")
-        return Pair(code, _client_id(data.get("id")), data.get("standalone") is True)
+        return Hello(_client_id(data.get("id")), data.get("standalone") is True)
     raise ValueError(f"unknown message type: {t!r}")

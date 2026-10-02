@@ -1,17 +1,20 @@
 """The web server: the phone remote, its WebSocket, and the PC-only status page.
 
-Phones must authenticate in their first WebSocket message, with the pairing
-token or the short code. Nothing else is accepted until then.
+nipulate is open to every device on the local network: there's nothing to
+pair. What it does guard against is other websites. A page on the internet
+can't drive it, because the phone socket only accepts its own page (the Origin
+check) reached by an IP address or a local name, never through a public domain
+that has been pointed at this PC (the Host check, against DNS rebinding).
 
-The PC page and its endpoints (QR code, Stop, Reset pairing) carry or change
-the pairing secrets, so they only answer requests from this PC, addressed to a
-loopback host name, from the page's own origin.
+The PC page and its endpoints (QR code, Stop) only answer requests from this
+PC, addressed to a loopback name, from the page's own origin.
 """
 
 from __future__ import annotations
 
 import asyncio
 import io
+import ipaddress
 import json
 import os
 from importlib import resources
@@ -23,14 +26,13 @@ from aiohttp import WSMsgType, web
 from . import __version__
 from .device import describe_device
 from .hub import LOOPBACK, Hub, Phone
-from .pairing import LIMITED, OK
-from .protocol import MAX_MESSAGE_BYTES, Hello, Pair, Ping, parse_message
+from .protocol import MAX_MESSAGE_BYTES, Hello, Ping, parse_message
 
 HUB = web.AppKey("hub", Hub)
 _HOUSEKEEPING = web.AppKey("housekeeping", asyncio.Task)
 
 STATIC = resources.files(__package__) / "static"
-AUTH_TIMEOUT_S = 10
+HELLO_TIMEOUT_S = 10
 LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 
 
@@ -38,6 +40,22 @@ def _same_origin(request: web.Request) -> bool:
     """True when the Origin header is missing or names this server, as typed in the address bar."""
     origin = request.headers.get("Origin")
     return origin is None or origin == f"{request.scheme}://{request.host}"
+
+
+def _local_host_name(host: str | None) -> bool:
+    """An IP address, or a name only the local network can resolve (no dots, or ending in .local).
+
+    A public domain here means a website pointed its DNS at this PC to get around
+    the browser's same-origin rules (DNS rebinding), so it's refused.
+    """
+    if not host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        host = host.lower().rstrip(".")
+        return "." not in host or host.endswith(".local")
 
 
 def _is_pc(request: web.Request) -> bool:
@@ -54,14 +72,15 @@ def _require_pc(request: web.Request) -> None:
 
 
 async def phone_socket(request: web.Request) -> web.WebSocketResponse:
-    """One phone. First message: hello (token) or pair (code). Then input messages."""
+    """One phone. First message: hello. Then input messages."""
     hub = request.app[HUB]
-    if not _same_origin(request):
-        hub.log(f"Refused a connection from {request.remote}: wrong Origin {request.headers.get('Origin')!r}")
+    if not (_same_origin(request) and _local_host_name(request.url.host)):
+        hub.log(f"Refused a connection from {request.remote}: it came from another website "
+                f"(Origin {request.headers.get('Origin')!r}, Host {request.host!r})")
         raise web.HTTPForbidden(text="Wrong origin.")
     ws = web.WebSocketResponse(heartbeat=5, max_msg_size=MAX_MESSAGE_BYTES)
     await ws.prepare(request)
-    phone = await _authenticate(request, ws)
+    phone = await _hello(request, ws)
     if phone is None:
         await ws.close()
         return ws
@@ -83,7 +102,7 @@ async def phone_socket(request: web.Request) -> web.WebSocketResponse:
                 if parsed.latency is not None:
                     phone.latency = round(parsed.latency)
                 await ws.send_json({"t": "pong", "ping": parsed.ping})
-            elif isinstance(parsed, (Hello, Pair)):
+            elif isinstance(parsed, Hello):
                 continue
             else:
                 hub.handle(phone, parsed)
@@ -92,49 +111,28 @@ async def phone_socket(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
-async def _authenticate(request: web.Request, ws: web.WebSocketResponse) -> Phone | None:
+async def _hello(request: web.Request, ws: web.WebSocketResponse) -> Phone | None:
     hub = request.app[HUB]
     ip = request.remote or "?"
     try:
-        msg = await ws.receive(timeout=AUTH_TIMEOUT_S)
+        msg = await ws.receive(timeout=HELLO_TIMEOUT_S)
         hello = parse_message(json.loads(msg.data)) if msg.type == WSMsgType.TEXT else None
     except (asyncio.TimeoutError, ValueError, TypeError):
         hello = None
-    if not isinstance(hello, (Hello, Pair)):
+    if not isinstance(hello, Hello):
         await ws.send_json({"t": "denied", "reason": "hello"})
-        return None
-
-    pairing = hub.pairing
-    if isinstance(hello, Hello):
-        result = pairing.check_token(ip, hello.token)
-    else:
-        result = pairing.check_code(ip, hello.code)
-    device = describe_device(request.headers.get("User-Agent", ""), hello.standalone)
-    if result != OK:
-        if result == LIMITED:
-            reason = "limited"
-            hub.log(f"Refused {device} at {ip}: too many failed attempts")
-        else:
-            reason = "token" if isinstance(hello, Hello) else "code"
-            hub.log(f"Refused {device} at {ip}: wrong pairing {'token' if reason == 'token' else 'code'}")
-        await ws.send_json({"t": "denied", "reason": reason, "retry": round(pairing.retry_after(ip))})
-        if isinstance(hello, Pair):
-            hub.broadcast_status()  # the code may have been replaced
         return None
 
     if hub.volume is None:
         hub.poll_volume()  # before connecting, so it arrives in the reply rather than as its own message
+    device = describe_device(request.headers.get("User-Agent", ""), hello.standalone)
     phone = Phone(hello.client_id or f"anon-{ip}", ws, ip, device)
-    if isinstance(hello, Pair):
-        hub.log(f"{device} at {ip} paired with the code")
     old = hub.connect(phone)
     if old is not None and not old.ws.closed:
         hub.log(f"{phone.label}: closing its older tab")
         await old.ws.send_json({"t": "replaced"})  # stops it reconnecting and fighting the new one
         await old.ws.close()
     reply = {"t": "ok", "version": __version__}
-    if isinstance(hello, Pair):
-        reply["k"] = pairing.token
     if hub.volume is not None:
         reply["vol"] = {"level": hub.volume[0], "muted": hub.volume[1]}
     await ws.send_json(reply)
@@ -174,25 +172,19 @@ async def stop(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
-async def reset_pairing(request: web.Request) -> web.Response:
-    _require_pc(request)
-    await request.app[HUB].reset_pairing()
-    return web.json_response({"ok": True})
-
-
 async def pc_status(request: web.Request) -> web.Response:
     _require_pc(request)
     return web.json_response(request.app[HUB].status())
 
 
 async def health(request: web.Request) -> web.Response:
-    """Public and secret-free: lets the launcher see that nipulate is running."""
+    """Lets the launcher see that nipulate is running."""
     return web.json_response({"app": "nipulate", "version": __version__})
 
 
 async def qr_code(request: web.Request) -> web.Response:
     _require_pc(request)
-    img = qrcode.make(request.app[HUB].pair_url(), image_factory=qrcode.image.svg.SvgPathImage, box_size=20)
+    img = qrcode.make(request.app[HUB].url, image_factory=qrcode.image.svg.SvgPathImage, box_size=20)
     buf = io.BytesIO()
     img.save(buf)
     return web.Response(body=buf.getvalue(), content_type="image/svg+xml")
@@ -239,7 +231,6 @@ def create_app(hub: Hub, phone_url: str) -> web.Application:
     app.router.add_get("/api/health", health)
     app.router.add_get("/api/pc", pc_status)
     app.router.add_post("/api/stop", stop)
-    app.router.add_post("/api/reset", reset_pairing)
     app.router.add_get("/qr.svg", qr_code)
     app.router.add_static("/static/", str(STATIC))
     app.on_startup.append(_start_housekeeping)

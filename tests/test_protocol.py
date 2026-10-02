@@ -10,7 +10,6 @@ from nipulate.protocol import (
     Key,
     Lock,
     Move,
-    Pair,
     Ping,
     Release,
     Scroll,
@@ -100,25 +99,23 @@ def test_simple_messages():
 
 
 def test_hello_cleans_the_client_id():
-    msg = parse_message({"t": "hello", "k": "abc", "id": "phone\n1" + "x" * 100, "standalone": True})
-    assert msg.token == "abc"
+    msg = parse_message({"t": "hello", "id": "phone\n1" + "x" * 100, "standalone": True})
     assert msg.client_id.startswith("phone1") and len(msg.client_id) <= 64
     assert msg.standalone is True
     assert isinstance(msg, Hello)
 
 
+def test_hello_ignores_an_old_pairing_key():
+    assert parse_message({"t": "hello", "k": "old-key", "id": "b"}) == Hello("b", False)
+
+
 def test_hello_standalone_must_be_exactly_true():
-    assert parse_message({"t": "hello", "k": "a", "id": "b", "standalone": "yes"}).standalone is False
+    assert parse_message({"t": "hello", "id": "b", "standalone": "yes"}).standalone is False
 
 
-def test_pair_accepts_spaced_codes():
-    assert parse_message({"t": "pair", "code": "123 456", "id": "p"}) == Pair("123456", "p", False)
-
-
-@pytest.mark.parametrize("bad", ["12a456", "", "١٢٣٤٥٦", 123456, "1234567890"])
-def test_pair_rejects_non_digit_codes(bad):
+def test_pairing_messages_no_longer_exist():
     with pytest.raises(ValueError):
-        parse_message({"t": "pair", "code": bad, "id": "p"})
+        parse_message({"t": "pair", "code": "123456", "id": "p"})
 
 
 @pytest.mark.parametrize("bad", ["hello", [1, 2], None, {"t": "exec", "cmd": "calc"}, {"no": "type"}])

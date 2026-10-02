@@ -5,7 +5,6 @@ import pytest
 
 from nipulate.hub import TYPING_IDLE_S, Hub, Phone
 from nipulate.input import FakeBackend
-from nipulate.pairing import Pairing
 from nipulate.protocol import KEYS, Button, Key, Lock, Move, Release, Scroll, Settings, Text
 
 
@@ -31,8 +30,8 @@ def lines():
 
 
 @pytest.fixture
-def hub(tmp_path, lines):
-    return Hub(FakeBackend(), Pairing(tmp_path / "config.json"), "test", verbose=True, out=lines.append)
+def hub(lines):
+    return Hub(FakeBackend(), "test", verbose=True, out=lines.append)
 
 
 def connect(hub, client_id="phone1", ip="192.168.1.20"):
@@ -41,12 +40,12 @@ def connect(hub, client_id="phone1", ip="192.168.1.20"):
     return phone
 
 
-async def test_connect_remembers_the_phone(hub):
+async def test_connected_phones_show_in_the_status(hub):
     connect(hub)
-    assert hub.pairing.devices["phone1"]["label"] == "iPhone Safari"
     status = hub.status()
     assert status["connected"] == 1
-    assert status["paired"][0]["connected"] is True
+    assert status["phones"][0]["label"] == "iPhone Safari"
+    assert status["phones"][0]["ip"] == "192.168.1.20"
 
 
 async def test_same_phone_reconnecting_returns_the_old_connection(hub):
@@ -148,17 +147,7 @@ async def test_lock_releases_buttons_and_locks(hub, lines):
     assert any("locked the PC" in line for line in lines)
 
 
-async def test_reset_pairing_signs_every_phone_out(hub):
+async def test_disconnected_phones_leave_the_status(hub):
     phone = connect(hub)
-    old = hub.pairing.token
-    await hub.reset_pairing()
-    assert hub.pairing.token != old
-    assert {"t": "reset"} in phone.ws.sent
-    assert phone.ws.closed
-
-
-async def test_status_has_the_pairing_link_and_code(hub):
-    hub.url = "http://192.168.1.9:8787/"
-    status = hub.status()
-    assert status["pair_url"] == f"http://192.168.1.9:8787/#k={hub.pairing.token}"
-    assert status["code"] == hub.pairing.code
+    hub.disconnect(phone, phone.ws)
+    assert hub.status()["phones"] == []

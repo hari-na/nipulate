@@ -1,6 +1,6 @@
 """Connected phones: turns their messages into input, and feeds the PC page.
 
-Each authenticated phone gets a ``Phone`` with its own pointer state and the
+Each connected phone gets a ``Phone`` with its own pointer state and the
 mouse buttons it's holding. Held buttons are released whenever a phone
 disconnects, loses focus or locks the PC, so nothing stays stuck down.
 
@@ -16,7 +16,6 @@ from collections import deque
 from collections.abc import Callable
 
 from .input import Backend
-from .pairing import Pairing
 from .pointer import Pointer
 from .protocol import KEYS, Button, Key, Lock, Message, Move, Release, Scroll, Settings, Text
 
@@ -57,10 +56,9 @@ class Phone:
 
 
 class Hub:
-    def __init__(self, backend: Backend, pairing: Pairing, mode: str, *, verbose: bool = False,
+    def __init__(self, backend: Backend, mode: str, *, verbose: bool = False,
                  stats_every_s: float = 10, out: Callable[[str], None] = print):
         self.backend = backend
-        self.pairing = pairing
         self.mode = mode
         self.verbose = verbose
         self.stats_every_s = stats_every_s
@@ -71,7 +69,6 @@ class Hub:
         self.volume: tuple[int, bool] | None = None
         self.url = ""  # the phone page address, set by the server
         self._last_stats = time.monotonic()
-        self._shown_code = ""
 
     # ---- logging and PC page updates ---------------------------------------
 
@@ -92,36 +89,22 @@ class Hub:
     def broadcast_status(self) -> None:
         self.broadcast({"t": "status", **self.status()})
 
-    def pair_url(self) -> str:
-        return f"{self.url}#k={self.pairing.token}"
-
     def status(self) -> dict:
-        """Everything the PC page shows. Contains the pairing secrets: only ever send it to the PC itself."""
-        by_id = {p.client_id: p for p in self.phones.values()}
-        paired = []
-        for client_id, info in self.pairing.devices.items():
-            phone = by_id.get(client_id)
-            paired.append({
-                "label": info.get("label", ""), "last_seen": info.get("last_seen"),
-                "connected": phone is not None,
-                "ip": phone.ip if phone else None,
-                "latency": phone.latency if phone else None,
-            })
-        paired.sort(key=lambda d: (not d["connected"], -(d["last_seen"] or 0)))
+        """Everything the PC page shows: the phone address and the connected phones."""
+        phones = sorted(self.phones.values(), key=lambda p: p.connected_at)
         return {
-            "mode": self.mode, "url": self.url, "pair_url": self.pair_url(),
-            "code": self.pairing.code, "code_ttl": round(self.pairing.code_expires_in),
-            "connected": len(self.phones), "paired": paired,
+            "mode": self.mode, "url": self.url, "connected": len(phones),
+            "phones": [{"label": p.device, "ip": p.ip, "latency": p.latency, "since": round(p.connected_at)}
+                       for p in phones],
             "volume": self.volume,
         }
 
     # ---- connections ---------------------------------------------------------
 
     def connect(self, phone: Phone) -> Phone | None:
-        """Register an authenticated phone. Returns the older connection of the same phone, if any."""
+        """Register a phone. Returns the older connection of the same phone, if any."""
         old = self.phones.get(phone.client_id)
         self.phones[phone.client_id] = phone
-        self.pairing.remember(phone.client_id, phone.device)
         self.log(f"{phone.label} connected")
         self.broadcast_status()
         return old
@@ -144,17 +127,6 @@ class Hub:
             self.log(f"{phone.label}: released {', '.join(sorted(phone.held))} button")
         phone.held.clear()
         phone.pointer.reset()
-
-    async def reset_pairing(self) -> None:
-        """New token: every phone is signed out and must scan the new QR code."""
-        self.pairing.reset()
-        self.log("Pairing reset: every phone has to pair again")
-        for phone in list(self.phones.values()):
-            self.release(phone)
-            if not phone.ws.closed:
-                await phone.ws.send_json({"t": "reset"})
-                await phone.ws.close()
-        self.broadcast_status()
 
     # ---- input ---------------------------------------------------------------
 
@@ -242,10 +214,8 @@ class Hub:
         for phone in self.phones.values():
             if phone.typed and now - phone.last_typed >= TYPING_IDLE_S:
                 self._flush_typing(phone)
-        code = self.pairing.code  # also replaces an expired code
-        if code != self._shown_code or self.phones:
-            self._shown_code = code
-            self.broadcast_status()
+        if self.phones:
+            self.broadcast_status()  # keeps latency on the PC page fresh
         if now - self._last_stats >= self.stats_every_s:
             self._log_stats(now - self._last_stats)
             self._last_stats = now

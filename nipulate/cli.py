@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import socket
 import sys
 from pathlib import Path
@@ -13,14 +14,14 @@ from aiohttp import web
 from . import __version__
 from .hub import Hub
 from .input import select_backend
-from .pairing import Pairing, default_config_path
 from .server import create_app
 
 DEFAULT_PORT = 8787  # seidr-pad uses 8777, so both can run at once
 
 
 def default_log_path() -> Path:
-    return default_config_path().with_name("nipulate.log")
+    base = os.environ.get("APPDATA") or str(Path.home() / ".config")
+    return Path(base) / "nipulate" / "nipulate.log"
 
 
 def lan_ip() -> str:
@@ -41,8 +42,6 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"port to serve on (default {DEFAULT_PORT})")
     ap.add_argument("--fake", action="store_true", help="don't send input to Windows (for testing the phone page)")
     ap.add_argument("-v", "--verbose", action="store_true", help="also log every click and key (never typed text)")
-    ap.add_argument("--config", type=Path, default=None,
-                    help=f"pairing file (default {default_config_path()})")
     ap.add_argument("--log", type=Path, default=None,
                     help="write the log to this file instead of the console (the desktop shortcut does this)")
     ap.add_argument("--version", action="version", version=f"nipulate {__version__}")
@@ -75,18 +74,15 @@ def main(argv=None) -> None:
         print(line, flush=True)
 
     backend, mode = select_backend(args.fake, out)
-    pairing = Pairing(args.config or default_config_path())
     url = f"http://{lan_ip()}:{args.port}/"
-    hub = Hub(backend, pairing, mode, verbose=args.verbose, out=out)
+    hub = Hub(backend, mode, verbose=args.verbose, out=out)
     app = create_app(hub, url)
 
-    if log_path is None:  # the QR code holds the pairing key: show it on screen, never write it to a file
-        _print_qr(hub.pair_url())
-        out("First time: scan the QR code with your phone (it holds the pairing key; keep it private).")
+    if log_path is None:
+        _print_qr(url)
     out(f"\nnipulate {__version__}: {mode}")
-    out(f"Phones already paired: open {url}")
-    out(f"PC page (QR code, pairing code, log, Stop): http://localhost:{args.port}/pc")
-    out(f"Pairing file: {pairing.path}")
+    out(f"Phones (same Wi-Fi): scan the QR code or open {url}")
+    out(f"PC page (QR code, log, Stop): http://localhost:{args.port}/pc")
     out(f"Logging every click and key: {'on' if args.verbose else 'off (add -v)'}")
     out("Stop it from the PC page.\n" if log_path else "Ctrl+C to stop.\n")
 
