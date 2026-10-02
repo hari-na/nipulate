@@ -1,0 +1,172 @@
+/* nipulate phone remote. Dark, big targets, portrait first. */
+:root {
+  --bg: #0a0b0e;
+  --surface: #16181d;
+  --pressed: #262a33;
+  --edge: #23262e;
+  --text: #e4e5e9;
+  --dim: #8a8e99;
+  --accent: #f0a646;
+  --accent-bg: rgba(240, 166, 70, 0.14);
+  --danger: #e8685f;
+  --ok: #5ac85a;
+  --gap: 8px;
+  --radius: 18px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
+  background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  touch-action: none;
+}
+body { position: fixed; inset: 0; }
+
+button {
+  font: inherit; color: inherit; border: 0; margin: 0; padding: 0; background: none;
+  -webkit-user-select: none; user-select: none; touch-action: none; cursor: pointer;
+}
+svg { width: 30px; height: 30px; fill: currentColor; flex: none; pointer-events: none; }
+
+/* The real text field behind the Type button. Kept in view (but invisible) so focusing it never scrolls the page. */
+#kbd {
+  position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0;
+  font-size: 16px; /* below 16px iOS zooms in on focus */
+  -webkit-user-select: text; user-select: text;
+}
+
+#app {
+  position: absolute; inset: 0; display: flex; flex-direction: column; gap: var(--gap);
+  padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+           max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+
+.row { display: flex; gap: var(--gap); }
+
+/* ---- header ---- */
+#top { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 2px 0 6px; }
+#dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dim); flex: none; }
+#dot.ok { background: var(--ok); }
+#dot.wait { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+#dot.bad { background: var(--danger); }
+@keyframes pulse { 50% { opacity: 0.3; } }
+#status { font-size: 17px; font-weight: 600; color: var(--dim); white-space: nowrap; }
+#typed { flex: 1; min-width: 0; font-size: 17px; color: var(--text); overflow: hidden; white-space: nowrap;
+         text-overflow: clip; direction: rtl; text-align: left; unicode-bidi: plaintext; }
+.icon-btn { margin-left: auto; width: 44px; height: 40px; display: grid; place-items: center; color: var(--dim); border-radius: 12px; }
+.icon-btn:active { background: var(--surface); }
+.icon-btn svg { width: 26px; height: 26px; }
+
+/* ---- keys ---- */
+.key {
+  flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--surface); border-radius: var(--radius); color: var(--text);
+  transition: background-color 80ms, transform 80ms;
+}
+.key.on { background: var(--pressed); transform: scale(0.96); }
+.key.txt { font-size: 19px; font-weight: 650; letter-spacing: 0.01em; }
+.key.txt.small { font-size: 16px; }
+.key.wide span { font-size: 17px; font-weight: 600; }
+.key.active { background: var(--accent-bg); color: var(--accent); }
+
+#media .key { height: 84px; }
+#media .key svg { width: 36px; height: 36px; }
+#media .play { flex-grow: 1.6; background: var(--accent-bg); color: var(--accent); }
+#media .play svg { width: 44px; height: 44px; }
+#media .play.on { background: rgba(240, 166, 70, 0.26); }
+
+#volume { position: relative; }
+#volume .key { height: 64px; }
+#mute span { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+#mute.muted { color: var(--danger); }
+#level-bar { position: absolute; left: 20%; right: 20%; bottom: -5px; height: 3px; border-radius: 2px; background: var(--edge); }
+#level-fill { height: 100%; width: 0; border-radius: 2px; background: var(--dim); transition: width 120ms; }
+#mute.muted ~ #level-bar #level-fill { background: var(--danger); opacity: 0.5; }
+
+#yt .label { margin: 4px 4px 6px; font-size: 14px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
+#yt .label span { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 6px; }
+#yt .key { height: 56px; border-radius: 14px; }
+#yt .key svg { width: 26px; height: 26px; }
+#yt .row { gap: 6px; }
+
+/* ---- trackpad ---- */
+#pad {
+  flex: 1 1 auto; min-height: 120px; position: relative; border-radius: 22px;
+  background: #101216; border: 1px solid var(--edge);
+  display: grid; place-items: center; touch-action: none;
+}
+#pad.dragging { border-color: var(--accent); background: #15130f; }
+#pad.scrolling { border-color: #3a3f4b; }
+#pad-hint { margin: 0; padding: 0 24px; text-align: center; font-size: 15px; line-height: 1.6; color: #50545e; transition: opacity 400ms; }
+#pad.used #pad-hint { opacity: 0; }
+
+#bar .key { height: 60px; }
+#bar svg { width: 26px; height: 26px; }
+
+/* ---- special-keys drawer ---- */
+#drawer {
+  position: absolute; left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right));
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 60px + var(--gap));
+  display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 58px; gap: 6px;
+  padding: 8px; border-radius: 22px; background: #0e1014; border: 1px solid var(--edge);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  transform: translateY(16px); opacity: 0; pointer-events: none; transition: transform 160ms, opacity 160ms;
+}
+#drawer.open { transform: none; opacity: 1; pointer-events: auto; }
+#drawer .key { border-radius: 14px; }
+#drawer .key svg { width: 26px; height: 26px; }
+#drawer .span2 { grid-column: span 2; }
+.key.danger { color: var(--danger); }
+
+/* ---- overlays ---- */
+.overlay {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 20px;
+  background: rgba(5, 6, 8, 0.86); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.overlay[hidden] { display: none; }
+.overlay.sheet { place-items: end center; padding: 0; touch-action: manipulation; }
+.card {
+  width: min(420px, 100%); background: var(--surface); border: 1px solid var(--edge); border-radius: 24px;
+  padding: 24px 20px; display: flex; flex-direction: column; gap: 14px;
+}
+.sheet .card { border-radius: 24px 24px 0 0; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.card h1 { margin: 0; font-size: 24px; }
+.card p { margin: 0; font-size: 17px; line-height: 1.45; color: #c3c5cc; }
+.card .hint { font-size: 15px; color: var(--dim); }
+.card .buttons { display: flex; gap: 10px; }
+.primary, .secondary {
+  flex: 1; min-height: 54px; border-radius: 16px; font-size: 18px; font-weight: 650; touch-action: manipulation;
+}
+.primary { background: var(--accent); color: #1a1206; }
+.primary.danger { background: var(--danger); color: #1a0806; }
+.secondary { background: var(--pressed); color: var(--text); }
+.primary:active, .secondary:active { filter: brightness(0.85); }
+
+#pair-form { display: flex; gap: 10px; }
+#code {
+  flex: 1; min-width: 0; height: 60px; border-radius: 16px; border: 1px solid var(--edge); background: var(--bg);
+  color: var(--text); font: inherit; font-size: 28px; font-weight: 650; letter-spacing: 0.12em; text-align: center;
+  font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; touch-action: manipulation;
+}
+#code:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+#pair-form .primary { flex: none; padding: 0 22px; min-height: 60px; }
+#pair-msg.error { color: var(--danger); }
+
+.field { display: flex; flex-direction: column; gap: 10px; font-size: 17px; }
+.field b { color: var(--accent); margin-left: 6px; }
+.field small { color: var(--dim); font-size: 15px; }
+input[type=range] { width: 100%; height: 36px; accent-color: var(--accent); touch-action: manipulation; }
+.segmented { display: flex; background: var(--bg); border-radius: 14px; padding: 4px; gap: 4px; }
+.segmented button { flex: 1; min-height: 46px; border-radius: 11px; font-size: 17px; font-weight: 600; color: var(--dim); touch-action: manipulation; }
+.segmented button.sel { background: var(--pressed); color: var(--text); }
+
+/* Short landscape screens: shrink the rows so the trackpad keeps some room. */
+@media (max-height: 520px) {
+  #media .key { height: 56px; }
+  #volume .key, #yt .key, #bar .key { height: 46px; }
+  #yt .label { display: none; }
+  #drawer { grid-auto-rows: 44px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 46px + var(--gap)); }
+}

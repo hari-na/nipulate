@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="nipulate">
+<meta name="theme-color" content="#0a0b0e">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icon.png">
+<link rel="icon" href="/static/icon.png">
+<link rel="stylesheet" href="/static/remote.css">
+<title>nipulate</title>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-playpause" viewBox="0 0 24 24"><path d="M2.5 5v14l9.5-7z M14 5h3v14h-3z M19.5 5h3v14h-3z"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M5 6h2.5v12H5z M9 12l9.5 6.5v-13z"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M16.5 6H19v12h-2.5z M15 12L5.5 5.5v13z"/></symbol>
+    <symbol id="i-voldown" viewBox="0 0 24 24"><path d="M2 9v6h4l5 5V4L6 9z M14.5 11h7v2h-7z"/></symbol>
+    <symbol id="i-volup" viewBox="0 0 24 24"><path d="M2 9v6h4l5 5V4L6 9z M14.5 11h2.5V8.5h2V11h2.5v2H19v2.5h-2V13h-2.5z"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M2 9v6h4l5 5V4L6 9z"/><path d="M14.5 8.5a5 5 0 0 1 0 7 M17.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-muted" viewBox="0 0 24 24"><path d="M2 9v6h4l5 5V4L6 9z"/><path d="M15 9l6 6 M21 9l-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-skip" viewBox="0 0 24 24"><path d="M4 5.5v13l10-6.5z M15.5 5.5h3v13h-3z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="5.5" width="20" height="13" rx="2.5"/><path d="M6 9.5h.01 M10 9.5h.01 M14 9.5h.01 M18 9.5h.01 M6 13h.01 M18 13h.01 M9 14.5h6"/></g></symbol>
+    <symbol id="i-keys" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></g></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7h10 M19 7h2 M3 17h4 M13 17h8"/><circle cx="16" cy="7" r="2.5"/><circle cx="10" cy="17" r="2.5"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></g></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<input id="kbd" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+       enterkeyhint="send" aria-label="Type on the PC">
+
+<div id="app">
+  <header id="top">
+    <span id="dot"></span>
+    <span id="status">Connecting</span>
+    <span id="typed" hidden></span>
+    <button class="icon-btn" id="open-settings" aria-label="Settings"><svg><use href="#i-settings"/></svg></button>
+  </header>
+
+  <section id="media" class="row">
+    <button class="key" data-key="prev" aria-label="Previous track"><svg><use href="#i-prev"/></svg></button>
+    <button class="key play" data-key="play_pause" aria-label="Play or pause"><svg><use href="#i-playpause"/></svg></button>
+    <button class="key" data-key="next" aria-label="Next track"><svg><use href="#i-next"/></svg></button>
+  </section>
+
+  <section id="volume" class="row">
+    <button class="key" data-key="vol_down" data-repeat aria-label="Volume down"><svg><use href="#i-voldown"/></svg></button>
+    <button class="key" data-key="mute" id="mute" aria-label="Mute">
+      <svg id="mute-icon"><use href="#i-speaker"/></svg><span id="level"></span>
+    </button>
+    <button class="key" data-key="vol_up" data-repeat aria-label="Volume up"><svg><use href="#i-volup"/></svg></button>
+    <div id="level-bar" hidden><div id="level-fill"></div></div>
+  </section>
+
+  <section id="yt">
+    <p class="label">YouTube <span>click the video tab first</span></p>
+    <div class="row">
+      <button class="key txt" data-key="yt_back" aria-label="Back 10 seconds">-10s</button>
+      <button class="key txt" data-key="yt_forward" aria-label="Forward 10 seconds">+10s</button>
+      <button class="key" data-key="yt_fullscreen" aria-label="Fullscreen"><svg><use href="#i-full"/></svg></button>
+      <button class="key txt" data-key="yt_captions" aria-label="Captions">CC</button>
+      <button class="key" data-key="yt_next" aria-label="Next video"><svg><use href="#i-skip"/></svg></button>
+      <button class="key txt" data-key="esc" aria-label="Escape">Esc</button>
+    </div>
+  </section>
+
+  <div id="pad">
+    <p id="pad-hint">Tap to click &middot; Hold, then move to drag<br>Two fingers: scroll, or tap to right-click</p>
+  </div>
+
+  <nav id="bar" class="row">
+    <button class="key wide" data-key="browser_back" aria-label="Browser back"><svg><use href="#i-back"/></svg><span>Back</span></button>
+    <button class="key wide" id="kbd-btn" aria-label="Keyboard"><svg><use href="#i-keyboard"/></svg><span>Type</span></button>
+    <button class="key wide" id="keys-btn" aria-label="More keys" aria-expanded="false"><svg><use href="#i-keys"/></svg><span>Keys</span></button>
+  </nav>
+
+  <div id="drawer" aria-hidden="true">
+    <button class="key txt" data-key="esc">Esc</button>
+    <button class="key" data-key="up" data-repeat aria-label="Up"><svg><use href="#i-up"/></svg></button>
+    <button class="key txt" data-key="tab">Tab</button>
+    <button class="key txt" data-key="backspace" data-repeat aria-label="Backspace">&#x232B;</button>
+    <button class="key" data-key="left" data-repeat aria-label="Left"><svg style="transform:rotate(-90deg)"><use href="#i-up"/></svg></button>
+    <button class="key" data-key="down" data-repeat aria-label="Down"><svg style="transform:rotate(180deg)"><use href="#i-up"/></svg></button>
+    <button class="key" data-key="right" data-repeat aria-label="Right"><svg style="transform:rotate(90deg)"><use href="#i-up"/></svg></button>
+    <button class="key txt" data-key="enter">Enter</button>
+    <button class="key txt" data-key="win">Win</button>
+    <button class="key txt small" data-key="alt_tab">Alt+Tab</button>
+    <button class="key txt span2" data-key="space">Space</button>
+    <button class="key txt small" data-key="copy">Copy</button>
+    <button class="key txt small" data-key="paste">Paste</button>
+    <button class="key txt small" data-key="close_tab">Close tab</button>
+    <button class="key danger" id="lock-btn" aria-label="Lock the PC"><svg><use href="#i-lock"/></svg></button>
+  </div>
+</div>
+
+<div class="overlay" id="pair" hidden>
+  <div class="card">
+    <h1>Pair with your PC</h1>
+    <p id="pair-msg">Scan the QR code on the PC with your phone's camera, or type the code shown under it.</p>
+    <form id="pair-form" autocomplete="off">
+      <input id="code" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="000 000" aria-label="Pairing code">
+      <button class="primary" type="submit">Pair</button>
+    </form>
+    <p class="hint">The PC page opens when you start nipulate. It's also at <b>localhost:8787/pc</b> on the PC.</p>
+  </div>
+</div>
+
+<div class="overlay" id="replaced" hidden>
+  <div class="card">
+    <h1>Open somewhere else</h1>
+    <p>nipulate was opened in another tab or the Home Screen app, so this one stepped aside.</p>
+    <button class="primary" id="take-over">Use it here</button>
+  </div>
+</div>
+
+<div class="overlay" id="confirm-lock" hidden>
+  <div class="card">
+    <h1>Lock the PC?</h1>
+    <p>You'll need to sign in on the PC itself to unlock it. The remote can't type on the lock screen.</p>
+    <div class="buttons">
+      <button class="secondary" id="lock-cancel">Cancel</button>
+      <button class="primary danger" id="lock-ok">Lock</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay sheet" id="settings" hidden>
+  <div class="card">
+    <h1>Settings</h1>
+    <label class="field">
+      <span>Pointer speed <b id="sens-value"></b></span>
+      <input type="range" id="sens" min="0.5" max="4" step="0.1">
+    </label>
+    <div class="field">
+      <span>Two-finger scroll</span>
+      <div class="segmented" id="scroll-dir">
+        <button data-natural="1">Natural</button>
+        <button data-natural="0">Traditional</button>
+      </div>
+      <small id="scroll-help"></small>
+    </div>
+    <p class="hint" id="ios-tip" hidden>For full screen: tap Share, then <b>Add to Home Screen</b>. The Home Screen app pairs separately, with the code.</p>
+    <div class="buttons">
+      <button class="secondary" id="forget">Unpair this phone</button>
+      <button class="primary" id="settings-done">Done</button>
+    </div>
+    <p class="hint" id="version"></p>
+  </div>
+</div>
+
+<script src="/static/remote.js"></script>
+</body>
+</html>
