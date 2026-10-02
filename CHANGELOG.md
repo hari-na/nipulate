@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+
+- The desktop shortcut runs the server in the background with no console window, so closing a window can't stop it by accident. Stop it from the PC page. The log goes to `%APPDATA%\nipulate\nipulate.log`, without the QR code.
+
+### Added
+
+- `--log PATH` writes the log to a file.
+
 ## [0.1.0] - 2026-10-02
 
 First public version.

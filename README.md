@@ -32,13 +32,13 @@ scripts\setup.bat
 
 ## Use
 
-1. Double-click the **nipulate** desktop shortcut. The server starts in a minimized console window and the PC page opens with a big QR code. (Or run `scripts\run.bat` to keep the log in front of you.)
+1. Double-click the **nipulate** desktop shortcut. The server starts in the background, with no window to keep open, and the PC page opens with a big QR code. (Or run `scripts\run.bat` to run it in a console window with the log in front of you.)
 2. The first time, Windows asks to let Python through the firewall. Allow it on **Private networks**.
 3. **First time only:** scan the QR code with your phone's camera. The phone is now paired and remembers it.
 4. From then on, open the same address on the phone (bookmark it, or add it to the Home Screen) and control the PC from the couch.
-5. Press **Stop** on the PC page to shut nipulate down.
+5. Press **Stop** on the PC page to shut nipulate down. Closing the page doesn't stop it; double-click the shortcut again to get the page back.
 
-The PC page is always at `http://localhost:8787/pc` on the PC.
+The PC page is always at `http://localhost:8787/pc` on the PC. When nipulate is started from the shortcut, its log is also written to `%APPDATA%\nipulate\nipulate.log`.
 
 ### Controls
 
@@ -90,7 +90,7 @@ Keep in mind:
 ## Command line
 
 ```
-nipulate [--port 8787] [--fake] [-v] [--config PATH]
+nipulate [--port 8787] [--fake] [-v] [--config PATH] [--log PATH]
 ```
 
 | Option | |
@@ -99,6 +99,7 @@ nipulate [--port 8787] [--fake] [-v] [--config PATH]
 | `--fake` | Don't send input to Windows; for trying the phone page safely, and on other systems |
 | `-v` | Also log every click and key (never typed text) |
 | `--config` | Where to keep the pairing key (default `%APPDATA%\nipulate\config.json`) |
+| `--log` | Write the log to a file instead of the console (the desktop shortcut uses `%APPDATA%\nipulate\nipulate.log`) |
 
 ## How it works
 
@@ -127,7 +128,7 @@ nipulate/
   pointer.py    pointer acceleration and scroll scaling
   protocol.py   message format and validation
   device.py     User-Agent to "iPhone Safari" style labels
-  launcher.py   desktop shortcut: start the server, open the PC page
+  launcher.py   desktop shortcut: start the server in the background, open the PC page
   static/       phone remote and PC page
 scripts/        Windows setup, run and shortcut scripts
 tests/          pytest suite
