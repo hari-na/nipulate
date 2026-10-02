@@ -17,7 +17,7 @@ labels: bug
 - nipulate version (`nipulate --version`):
 
 **Server log**
-<!-- From scriptsun.bat or the log on the PC page, around when it happened. It never contains typed text or the pairing key. Please don't attach photos of the QR code. -->
+<!-- From scripts\run.bat or the log on the PC page, around when it happened. It never contains typed text. -->
 ```
 
 ```

@@ -16,13 +16,11 @@ On macOS or Linux, use `.venv/bin/...` instead. The server runs in `--fake` mode
 ## Running
 
 ```bat
-.venv\Scripts
-ipulate -v          :: real input (Windows)
-.venv\Scripts
-ipulate --fake -v   :: records input instead of sending it
+.venv\Scripts\nipulate -v          :: real input (Windows)
+.venv\Scripts\nipulate --fake -v   :: records input instead of sending it
 ```
 
-Open `http://localhost:8787/pc` for the QR code and log, and open the phone page from a phone on the same Wi-Fi. A desktop browser works too: shrink the window to portrait phone size and open the address from the QR code (the part after `#k=` is the pairing key). `--config` points at a separate pairing file, so testing doesn't touch your real pairing.
+Open `http://localhost:8787/pc` for the QR code and log, and open the phone page from a phone on the same Wi-Fi. A desktop browser works too: shrink the window to portrait phone size and open `http://localhost:8787/`.
 
 ## Checks
 
@@ -30,7 +28,7 @@ Run both before opening a pull request. CI runs them on Windows and Linux.
 
 ```bat
 .venv\Scripts\pytest
-.venv\Scriptsuff check .
+.venv\Scripts\ruff check .
 ```
 
 ## Guidelines
@@ -39,7 +37,8 @@ Run both before opening a pull request. CI runs them on Windows and Linux.
 - **Anything a phone sends is untrusted.** Validate it in `protocol.py`: clamp numbers, and add new keys as named actions in `KEYS`. Never accept raw virtual-key codes from the phone.
 - **Nothing that runs programs or commands.** nipulate presses keys and moves the mouse, and that's the whole surface.
 - **Never log typed text.** Log counts, not characters.
-- **PC-only actions** (stop, reset pairing, anything showing the QR code) must use `_require_pc` in `server.py`.
+- **Keep other websites out.** The phone socket checks the Origin and Host headers in `server.py`; keep both checks on any new endpoint a phone can reach.
+- **PC-only actions** (Stop, the QR code, the status page) must use `_require_pc` in `server.py`.
 - **Put phone-provided strings into pages with `textContent`,** never `innerHTML`.
 - **Tests:** new server or hub behavior gets a test. `FakeBackend` stands in for Windows.
 - **Testing real input:** check pointer movement with `GetCursorPos`, and test keys only against a page of your own that has focus.
@@ -47,4 +46,4 @@ Run both before opening a pull request. CI runs them on Windows and Linux.
 
 ## Reporting a bug
 
-Please include the phone model and browser (or Home Screen app), Windows version, and the server log around the problem (`scriptsun.bat` shows it, as does the log on the PC page). The log never contains typed text or the pairing key, but don't include screenshots of the QR code.
+Please include the phone model and browser (or Home Screen app), Windows version, and the server log around the problem (`scripts\run.bat` shows it, as does the log on the PC page). The log never contains typed text.

@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Removed
+
+- Pairing. Any phone on the Wi-Fi can open the remote: no QR key, no 6-digit code, no Reset pairing. The QR code now just opens the page.
+
 ### Changed
 
 - The desktop shortcut runs the server in the background with no console window, so closing a window can't stop it by accident. Stop it from the PC page. The log goes to `%APPDATA%\nipulate\nipulate.log`, without the QR code.
@@ -11,6 +15,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Added
 
 - `--log PATH` writes the log to a file.
+- The phone connection refuses requests whose Host is a public domain, so a website can't reach nipulate through DNS rebinding now that there's no pairing key.
+
+### Fixed
+
+- Broken lines in CONTRIBUTING.md and the bug report template.
 
 ## [0.1.0] - 2026-10-02
 
