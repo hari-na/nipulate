@@ -233,8 +233,6 @@ function showVolume(level, muted) {
 
 // ---- buttons ------------------------------------------------------------------
 
-function buzz(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (_) {} } }
-
 let repeatTimer = 0;
 let repeatKey = null;
 const pressed = new Map(); // pointerId -> button element
@@ -253,7 +251,6 @@ document.addEventListener("pointerdown", (e) => {
   const key = btn.dataset.key;
   btn.classList.add("on");
   pressed.set(e.pointerId, btn);
-  buzz(8);
   send({ t: "key", k: key });
   if (btn.hasAttribute("data-repeat")) {
     stopRepeat();
@@ -316,7 +313,6 @@ function startDrag() {
   if (mode !== "pending") return;
   mode = "drag";
   pad.classList.add("dragging");
-  buzz(15);
   send({ t: "button", b: "left", a: "down" });
 }
 
