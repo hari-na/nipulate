@@ -26,21 +26,18 @@
            border: 1px solid var(--edge); border-radius: 10px; padding: 9px 16px; cursor: pointer; }
   button:hover { border-color: #3a3e49; }
   #stop:hover { border-color: var(--danger); color: var(--danger); }
-  #reset:hover { border-color: var(--accent); color: var(--accent); }
   button:disabled { opacity: 0.4; cursor: default; }
 
   main { display: grid; grid-template-columns: minmax(300px, auto) minmax(320px, 1fr); gap: 28px; align-items: start; }
   @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
 
-  .pairing { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .join { display: flex; flex-direction: column; align-items: center; gap: 16px; }
   .qr { background: #fff; padding: 18px; border-radius: 20px; line-height: 0; }
   .qr img { width: min(58vh, 80vw, 520px); height: auto; }
   .qr.blank img { visibility: hidden; }
   .scan { font-size: 22px; font-weight: 650; margin: 0; }
   .or { color: var(--dim); font-size: 16px; text-align: center; margin: 0; line-height: 1.5; }
   .or b { color: var(--text); font-weight: 600; }
-  .code { font-size: 44px; font-weight: 750; letter-spacing: 0.14em; font-variant-numeric: tabular-nums; margin: 0; }
-  .ttl { color: var(--dim); font-size: 14px; margin: -10px 0 0; }
 
   h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin: 0 0 10px; font-weight: 600; }
   section + section { margin-top: 26px; }
@@ -70,29 +67,26 @@
   <span class="pill" id="mode">connecting</span>
   <span class="version" id="version"></span>
   <div class="actions">
-    <button id="reset" title="Make a new QR code and sign every phone out">Reset pairing</button>
     <button id="stop">Stop</button>
   </div>
 </header>
 <div id="down">The nipulate server isn't running. Start it again from the desktop shortcut.</div>
 <main>
-  <div class="pairing">
-    <div class="qr blank" id="qr"><img id="qr-img" alt="QR code that pairs a phone with this PC"></div>
+  <div class="join">
+    <div class="qr blank" id="qr"><img id="qr-img" alt="QR code that opens the remote on a phone"></div>
     <p class="scan">Scan with your phone's camera</p>
-    <p class="or">Already scanned, or on an iPhone Home Screen app?<br>Open <b id="url"></b> and type this code:</p>
-    <p class="code" id="code">--- ---</p>
-    <p class="ttl" id="ttl"></p>
+    <p class="or">or open <b id="url"></b> on a phone on the same Wi-Fi.<br>Bookmark it or add it to the Home Screen for next time.</p>
   </div>
   <div>
     <section>
       <h2>Phones</h2>
-      <ul id="phones"><li class="empty">No phones paired yet</li></ul>
+      <ul id="phones"><li class="empty">No phones connected</li></ul>
     </section>
     <section>
       <h2>Log</h2>
       <div id="log"></div>
       <ul class="notes">
-        <li>The QR code works like a password: anyone who scans it can control this PC. Don't share photos of it.</li>
+        <li>Any phone on this Wi-Fi can open the remote, so use it on your home network only.</li>
         <li>nipulate runs in the background, even after you close this page. Press <b>Stop</b> to shut it down; the desktop shortcut brings this page back.</li>
         <li>First run: when Windows asks, allow Python on <b>Private networks</b>.</li>
         <li>Windows doesn't let the remote control admin windows or the lock screen.</li>
@@ -103,18 +97,7 @@
 <script>
   "use strict";
   const $ = (s) => document.querySelector(s);
-  let pairUrl = "";
-  let codeTtl = 0;
-  let ttlAt = 0;
-
-  function ago(epochSeconds) {
-    if (!epochSeconds) return "";
-    const s = Math.max(0, Date.now() / 1000 - epochSeconds);
-    if (s < 90) return "just now";
-    if (s < 3600) return Math.round(s / 60) + " min ago";
-    if (s < 86400) return Math.round(s / 3600) + " h ago";
-    return Math.round(s / 86400) + " days ago";
-  }
+  let qrUrl = "";
 
   function render(d) {
     const live = d.mode.startsWith("live");
@@ -122,33 +105,27 @@
     $("#mode").className = "pill " + (live ? "live" : "test");
     $("#mode").title = d.mode;
     $("#url").textContent = d.url;
-    const c = d.code || "";
-    $("#code").textContent = c.slice(0, 3) + " " + c.slice(3);
-    codeTtl = d.code_ttl;
-    ttlAt = performance.now();
-    if (d.pair_url !== pairUrl) {
-      pairUrl = d.pair_url;
+    if (d.url !== qrUrl) {
+      qrUrl = d.url;
       $("#qr-img").src = "/qr.svg?v=" + Date.now();
       $("#qr-img").onload = () => $("#qr").classList.remove("blank");
     }
     const list = $("#phones");
-    if (!d.paired.length) {
-      list.innerHTML = '<li class="empty">No phones paired yet</li>';
+    if (!d.phones.length) {
+      list.innerHTML = '<li class="empty">No phones connected</li>';
       return;
     }
     // Labels come from phones' browsers: textContent only, never innerHTML.
-    list.replaceChildren(...d.paired.map((p) => {
+    list.replaceChildren(...d.phones.map((p) => {
       const li = document.createElement("li");
       const dot = document.createElement("span");
-      dot.className = "dot" + (p.connected ? " on" : "");
+      dot.className = "dot on";
       const nm = document.createElement("span");
       nm.className = "nm";
       nm.textContent = p.label || "Phone";
       const st = document.createElement("span");
       st.className = "st";
-      st.textContent = p.connected
-        ? `connected · ${p.ip}` + (p.latency != null ? ` · ${p.latency} ms` : "")
-        : `last seen ${ago(p.last_seen)}`;
+      st.textContent = p.ip + (p.latency != null ? ` · ${p.latency} ms` : "");
       li.append(dot, nm, st);
       return li;
     }));
@@ -161,12 +138,6 @@
     while (log.childNodes.length > 400) log.firstChild.remove();
     if (atBottom) log.scrollTop = log.scrollHeight;
   }
-
-  setInterval(() => {
-    const left = Math.max(0, codeTtl - (performance.now() - ttlAt) / 1000);
-    const m = Math.floor(left / 60), s = Math.floor(left % 60);
-    $("#ttl").textContent = codeTtl ? `new code in ${m}:${String(s).padStart(2, "0")}` : "";
-  }, 500);
 
   function connect() {
     const ws = new WebSocket(`ws://${location.host}/ws/pc`);
@@ -186,7 +157,6 @@
     };
     ws.onclose = () => {
       document.body.classList.add("offline");
-      codeTtl = 0;
       $("#mode").textContent = "stopped";
       $("#mode").className = "pill down";
       setTimeout(connect, 2000);
@@ -202,11 +172,6 @@
   $("#stop").addEventListener("click", async () => {
     $("#stop").disabled = true;
     try { await post("/api/stop"); } catch (_) { $("#stop").disabled = false; }
-  });
-
-  $("#reset").addEventListener("click", async () => {
-    if (!confirm("Make a new QR code? Every paired phone is signed out and has to pair again.")) return;
-    try { await post("/api/reset"); } catch (e) { alert("Couldn't reset pairing: " + e.message); }
   });
 </script>
 </body>
