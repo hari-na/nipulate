@@ -185,6 +185,7 @@
     };
     ws.onclose = () => {
       document.body.classList.add("offline");
+      codeTtl = 0;
       $("#mode").textContent = "stopped";
       $("#mode").className = "pill down";
       setTimeout(connect, 2000);
