@@ -19,6 +19,10 @@ from .server import create_app
 DEFAULT_PORT = 8787  # seidr-pad uses 8777, so both can run at once
 
 
+def default_log_path() -> Path:
+    return default_config_path().with_name("nipulate.log")
+
+
 def lan_ip() -> str:
     """Best guess at the address phones on the same Wi-Fi can reach."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -39,6 +43,8 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("-v", "--verbose", action="store_true", help="also log every click and key (never typed text)")
     ap.add_argument("--config", type=Path, default=None,
                     help=f"pairing file (default {default_config_path()})")
+    ap.add_argument("--log", type=Path, default=None,
+                    help="write the log to this file instead of the console (the desktop shortcut does this)")
     ap.add_argument("--version", action="version", version=f"nipulate {__version__}")
     return ap.parse_args(argv)
 
@@ -54,10 +60,16 @@ def _print_qr(url: str) -> None:
 
 def main(argv=None) -> None:
     args = parse_args(argv)
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    # Without a console (pythonw, as the desktop shortcut runs it) there's nowhere to print, so log to a file.
+    log_path = args.log or (default_log_path() if sys.stdout is None else None)
+    if log_path is not None:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        sys.stdout = sys.stderr = open(log_path, "w", encoding="utf-8", buffering=1)
+    else:
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
 
     def out(line: str) -> None:
         print(line, flush=True)
@@ -68,14 +80,15 @@ def main(argv=None) -> None:
     hub = Hub(backend, pairing, mode, verbose=args.verbose, out=out)
     app = create_app(hub, url)
 
-    _print_qr(hub.pair_url())
+    if log_path is None:  # the QR code holds the pairing key: show it on screen, never write it to a file
+        _print_qr(hub.pair_url())
+        out("First time: scan the QR code with your phone (it holds the pairing key; keep it private).")
     out(f"\nnipulate {__version__}: {mode}")
-    out("First time: scan the QR code with your phone (it holds the pairing key; keep it private).")
     out(f"Phones already paired: open {url}")
-    out(f"PC page (QR code, pairing code, log): http://localhost:{args.port}/pc")
+    out(f"PC page (QR code, pairing code, log, Stop): http://localhost:{args.port}/pc")
     out(f"Pairing file: {pairing.path}")
     out(f"Logging every click and key: {'on' if args.verbose else 'off (add -v)'}")
-    out("Ctrl+C to stop.\n")
+    out("Stop it from the PC page.\n" if log_path else "Ctrl+C to stop.\n")
 
     # Both IPv4 and IPv6, so "localhost" answers instantly whichever one it resolves to.
     web.run_app(app, host=["0.0.0.0", "::"], port=args.port, print=None)
