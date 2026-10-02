@@ -34,14 +34,16 @@ if (!clientId) { clientId = randomId(); store.set("id", clientId); }
 // The QR code puts the pairing token in the URL fragment (#k=...), which browsers never send
 // to the server. Keep it, then clear it from the address bar so it isn't bookmarked or shared.
 let token = store.get("token");
-{
+
+function readFragment() {
   const m = /[#&]k=([A-Za-z0-9_-]{16,128})/.exec(location.hash);
-  if (m) {
-    token = m[1];
-    store.set("token", token);
-    history.replaceState(null, "", location.pathname + location.search);
-  }
+  if (!m) return false;
+  token = m[1];
+  store.set("token", token);
+  history.replaceState(null, "", location.pathname + location.search);
+  return true;
 }
+readFragment();
 
 let sensitivity = parseFloat(store.get("sens", "1.5")) || 1.5;
 let natural = store.get("natural", "1") === "1";
@@ -166,6 +168,16 @@ setInterval(() => {
 
 addEventListener("online", () => { if (!ws && reconnect) connect(); });
 
+// The QR link opened in a tab that already had nipulate loaded.
+addEventListener("hashchange", () => {
+  if (!readFragment()) return;
+  pendingCode = null;
+  reconnect = true;
+  backoff = 500;
+  if (ws) { const s = ws; ws = null; authed = false; try { s.close(); } catch (_) {} }
+  connect();
+});
+
 // ---- overlays ---------------------------------------------------------------
 
 function show(sel) { $(sel).hidden = false; }
@@ -275,7 +287,10 @@ let frameQueued = false;
 let lastFrame = 0;
 
 function queueFrame() {
-  if (!frameQueued) { frameQueued = true; requestAnimationFrame(flush); }
+  if (frameQueued) return;
+  frameQueued = true;
+  requestAnimationFrame(flush);
+  setTimeout(() => { if (frameQueued) flush(performance.now()); }, 50); // in case frames stall
 }
 
 // Movement is added up and sent once per animation frame; clicks go out immediately.
@@ -358,6 +373,7 @@ pad.addEventListener("pointermove", (e) => {
 
 function padUp(e) {
   if (!touches.delete(e.pointerId)) return;
+  flush(performance.now()); // send the last bit of movement before any button change
   const elapsed = performance.now() - t0;
   switch (mode) {
     case "pending": // one finger, didn't move: a tap (or a long press without moving)
@@ -382,10 +398,7 @@ function padUp(e) {
       mode = "done"; // a finger lifted mid-gesture: don't let the other start something new
       break;
   }
-  if (touches.size === 0) {
-    flush(performance.now());
-    padReset();
-  }
+  if (touches.size === 0) padReset();
 }
 pad.addEventListener("pointerup", padUp);
 pad.addEventListener("pointercancel", padUp);
@@ -549,6 +562,8 @@ $("#forget").addEventListener("click", () => {
   if (ws) { const s = ws; ws = null; authed = false; try { s.close(); } catch (_) {} }
   showPair("This phone is unpaired. Scan the QR code on the PC, or type the code shown under it.");
 });
+
+if (location.port) $("#pc-url").textContent = `localhost:${location.port}/pc`;
 
 // ---- start --------------------------------------------------------------------------------
 

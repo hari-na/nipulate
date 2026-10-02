@@ -129,10 +129,10 @@ svg { width: 30px; height: 30px; fill: currentColor; flex: none; pointer-events:
 .overlay[hidden] { display: none; }
 .overlay.sheet { place-items: end center; padding: 0; touch-action: manipulation; }
 .card {
-  width: min(420px, 100%); background: var(--surface); border: 1px solid var(--edge); border-radius: 24px;
+  width: min(420px, calc(100vw - 40px)); background: var(--surface); border: 1px solid var(--edge); border-radius: 24px;
   padding: 24px 20px; display: flex; flex-direction: column; gap: 14px;
 }
-.sheet .card { border-radius: 24px 24px 0 0; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.sheet .card { width: min(520px, 100vw); border-radius: 24px 24px 0 0; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
 .card h1 { margin: 0; font-size: 24px; }
 .card p { margin: 0; font-size: 17px; line-height: 1.45; color: #c3c5cc; }
 .card .hint { font-size: 15px; color: var(--dim); }
