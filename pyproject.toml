@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nipulate"
+dynamic = ["version"]
+description = "Turn your phone into a TV remote for a Windows laptop: media keys, trackpad and keyboard, over Wi-Fi. No app to install."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "harnar" }]
+keywords = ["remote", "trackpad", "media-keys", "htpc", "phone", "sendinput"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "aiohttp>=3.9",
+    "qrcode>=7.4",
+    # Reads the current volume level for the phone's volume bar. Optional at
+    # runtime: without it the bar is hidden.
+    "pycaw>=20240210; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-aiohttp>=1.0", "ruff>=0.6"]
+
+[project.scripts]
+nipulate = "nipulate.cli:main"
+
+[project.gui-scripts]
+nipulate-launcher = "nipulate.launcher:main"
+
+[project.urls]
+Homepage = "https://github.com/hari-na/nipulate"
+Issues = "https://github.com/hari-na/nipulate/issues"
+
+[tool.setuptools]
+packages = ["nipulate"]
+
+[tool.setuptools.package-data]
+nipulate = ["static/*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "nipulate.__version__" }
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
